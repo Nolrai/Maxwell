@@ -69,6 +69,7 @@ test-suite Maxwell-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
+  other-modules:       MaxwellSpec
   build-depends:       Maxwell
                      , hspec
   ghc-options:         -threaded
