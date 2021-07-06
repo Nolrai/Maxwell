@@ -6,11 +6,11 @@ import Maxwell
 showDigits :: Int -> Double -> String 
 showDigits n = printf ("%." <> show n <> "f")
 
-showXYZ :: (XYZ -> Double) -> String
-showXYZ v = showDigits 3 (v X) <> ", " <> showDigits 3 (v Y) <> ", " <> showDigits 3 (v Z)
+showXYZ :: V3 Double) -> String
+showXYZ v = showDigits 3 (v ^. _x) <> ", " <> showDigits 3 (v ^. _y) <> ", " <> showDigits 3 (v ^. _z)
 
 showLAB :: (Lab -> Double) -> String
-showLAB lab = printf "L %f a* %f b* %f" (lab Light) (lab AStar) (lab BStar)
+showLAB lab = printf "L %f a* %f b* %f" (lab ^. _x) (lab ^. _y) (lab BStar)
 
 testCase :: (Lab -> Double) -> String -> Spec
 testCase lab result = 

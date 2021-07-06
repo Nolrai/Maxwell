@@ -10,7 +10,7 @@ vectorfields in color
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE TypeFamilies              #-}
 
-module Maxwell (myPicture, toXYZfromOK, toLab, XYZ(..), Lab (..), LMS(..)) where
+module Maxwell (myPicture, toXYZfromOK) where
 
 import Diagrams.Prelude hiding (light)
 import Diagrams.Backend.SVG.CmdLine ( B )
@@ -18,6 +18,7 @@ import Data.Colour.RGBSpace.HSL ( hsl )
 import Data.Colour.RGBSpace ( uncurryRGB )
 import Data.Colour.CIE ( cieLAB, cieXYZ ) 
 import Data.Colour.CIE.Illuminant ( d65 )
+import Linear.Matrix
 
 type Color' = Colour Double
 
@@ -63,57 +64,21 @@ myPicture = vcat $ row <$> reverse [okLABColorList, cieLABColorList, hslColorLis
 okLAB :: Double -> Double -> Double -> Colour Double
 okLAB l a b = cieXYZ x y z
   where
-    v = toXYZfromOK (toLab l a b)
-    x = v X
-    y = v Y
-    z = v Z
+    V3 x y z = toXYZfromOK (V3 l a b)
 
-toLab :: a -> a -> a -> Lab -> a
-toLab light aStar bStar lab = 
-  case lab of
-    Light -> light
-    AStar -> aStar
-    BStar -> bStar
+toXYZfromOK :: V3 Double -> V3 Double
+toXYZfromOK lab = m1 !* ((^ 3) <$> m2 !* lab)
 
-toXYZfromOK :: (Lab -> Double) -> XYZ -> Double
-toXYZfromOK lab = toXYZfromLMS $ (^ (3 :: Int)) <$> toLMSFromOk (lab Light) (lab AStar) (lab BStar)
+m1, m2 :: M33 Double
+m1 = inv33 $
+  V3 
+    (V3 0.8189330101 0.3618667424 (-0.1288597137))
+    (V3 0.0329845436 0.9293118715   0.0361456387)
+    (V3 0.0482003018 0.2643662691   0.6338517070)
 
-toLMSFromOk :: Double -> Double -> Double -> LMS -> Double
-toLMSFromOk light aStar bStar lms = light * mrow Light + aStar * mrow AStar + bStar * mrow BStar
-  where
-    mrow = m1 lms
+m2 = inv33 $
+  V3
+    (V3 0.2104542553   0.7936177850  (-0.0040720468))
+    (V3 1.9779984951 (-2.4285922050)   0.4505937099)
+    (V3 0.0259040371   0.7827717662  (-0.8086757660))
 
-toXYZfromLMS :: (LMS -> Double) -> (XYZ -> Double)
-toXYZfromLMS f xyz = f LL * mrow LL + f MM * mrow MM + f SS * mrow SS
-  where
-    mrow = m2 xyz
-
-data XYZ = X | Y | Z
-data LMS = LL | MM | SS
-data Lab = Light | AStar | BStar
-
-m1 :: LMS -> Lab -> Double
-m1 LL Light = 0.8189330101
-m1 MM Light = 0.0329845436
-m1 SS Light = 0.0482003018
-
-m1 LL AStar = 0.3618667424
-m1 MM AStar = 0.9293118715
-m1 SS AStar = 0.0482003018
-
-m1 LL BStar = -0.1288597137
-m1 MM BStar = 0.0361456387
-m1 SS BStar = 0.6338517070
-
-m2 :: XYZ -> LMS -> Double
-m2 X LL = 0.2104542553
-m2 Y LL = 1.9779984951
-m2 Z LL = 0.0259040371
- 
-m2 X MM = 0.7936177850
-m2 Y MM = -2.4285922050
-m2 Z MM = 0.7827717662
- 
-m2 X SS = -0.0040720468
-m2 Y SS = 0.4505937099
-m2 Z SS = -0.8086757660
