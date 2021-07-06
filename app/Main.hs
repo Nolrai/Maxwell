@@ -1,7 +1,6 @@
 module Main (main) where
-
-import Maxwell (someFunc)
-
+import Maxwell
+import Diagrams.Backend.SVG.CmdLine (mainWith)
 
 main :: IO ()
-main = someFunc
+main = mainWith myPicture
