@@ -18,7 +18,7 @@ import Data.Colour.RGBSpace.HSL ( hsl )
 import Data.Colour.RGBSpace ( uncurryRGB )
 import Data.Colour.CIE ( cieLAB, cieXYZ ) 
 import Data.Colour.CIE.Illuminant ( d65 )
-import Linear.Matrix
+import Linear.Matrix ( M33, inv33, (!*) )
 
 type Color' = Colour Double
 
@@ -38,10 +38,13 @@ row :: [Color'] -> Diagram B
 row colorList = hcat (zipWith myCircle colorList (drop 1 $ cycle colorList))
 
 cieLABColorList :: [Color']
-cieLABColorList = shiftR 2 . reverse $ (\x -> cieLAB d65 90 (100 * sin (2 * pi * x)) (100 * cos (2 * pi * x))) <$> fromZeroToOne
+cieLABColorList = shiftR 2 . reverse $ (\x -> cieLAB d65 50 (100 * sin (2 * pi * x)) (100 * cos (2 * pi * x))) <$> fromZeroToOne
+
+redColorList :: [Color']
+redColorList = shiftR 2 . reverse $ (\x -> cieLAB d65 (50 + 50 * sin (2 * pi * x)) 100 (100 * cos (2 * pi * x))) <$> fromZeroToOne
 
 okLABColorList :: [Color']
-okLABColorList = shiftR 2 . reverse $ (\x -> okLAB 90 (100 * sin (2 * pi * x)) (100 * cos (2 * pi * x))) <$> fromZeroToOne
+okLABColorList = shiftR 2 . reverse $ (\x -> okLAB 0.5 (sin (2 * pi * x)) (cos (2 * pi * x))) <$> fromZeroToOne
 
 shiftR :: Int -> [a] -> [a]
 shiftR n l = shiftL (length l - n) l
@@ -59,7 +62,7 @@ fromZeroToOne :: [Double]
 fromZeroToOne = drop 1 (enumFromThenTo 0 (1/18) 1)
 
 myPicture :: Diagram B
-myPicture = vcat $ row <$> reverse [okLABColorList, cieLABColorList, hslColorList, sRGBColorList]
+myPicture = vcat $ row <$> [cieLABColorList, redColorList, okLABColorList]
 
 okLAB :: Double -> Double -> Double -> Colour Double
 okLAB l a b = cieXYZ x y z
@@ -67,7 +70,7 @@ okLAB l a b = cieXYZ x y z
     V3 x y z = toXYZfromOK (V3 l a b)
 
 toXYZfromOK :: V3 Double -> V3 Double
-toXYZfromOK lab = m1 !* ((^ 3) <$> m2 !* lab)
+toXYZfromOK lab = m1 !* ((^ (3 :: Int)) <$> m2 !* lab)
 
 m1, m2 :: M33 Double
 m1 = inv33 $
