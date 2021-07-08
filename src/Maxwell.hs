@@ -10,7 +10,7 @@ vectorfields in color
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE TypeFamilies              #-}
 
-module Maxwell (myPicture, toXYZfromOK) where
+module Maxwell (myPicture, toXYZfromOK, okLAB) where
 
 import Diagrams.Prelude hiding (light)
 import Diagrams.Backend.SVG.CmdLine ( B )
