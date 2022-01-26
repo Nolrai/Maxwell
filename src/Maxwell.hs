@@ -10,12 +10,13 @@ vectorfields in color
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE TypeFamilies              #-}
 
-module Maxwell (myPicture, toXYZfromOK) where
+module Maxwell (myPicture, toXYZfromOK, okLAB, okLAB', cieLAB') where
 
 import Diagrams.Prelude hiding (light)
 import Diagrams.Backend.SVG.CmdLine ( B )
 import Data.Colour.RGBSpace.HSL ( hsl )
-import Data.Colour.RGBSpace ( uncurryRGB )
+import Data.Colour.RGBSpace ( uncurryRGB, inGamut )
+import Data.Colour.SRGB.Linear ( rgb, sRGBGamut )
 import Data.Colour.CIE ( cieLAB, cieXYZ ) 
 import Data.Colour.CIE.Illuminant ( d65 )
 import Linear.Matrix ( M33, inv33, (!*) )
@@ -37,11 +38,20 @@ myCircle a b = bot # lw none --vcat [top, bot]
 row :: [Color'] -> Diagram B
 row colorList = hcat (zipWith myCircle colorList (drop 1 $ cycle colorList))
 
+cieLAB' :: (Ord a, Floating a, Show a) => a -> a -> a -> Colour a
+cieLAB' x y z = 
+  let c = cieLAB d65 x y z in
+  let b = inGamut sRGBGamut c in
+  let msg1 = "(x,y,z) = " <> show (x,y,z) in
+  let msg = " c = " <> show c <> (if b then " is " else " isn't ") <> "inGamut " in
+    Prelude.trace (msg1 <> msg) c
+
+
 cieLABColorList :: [Color']
-cieLABColorList = shiftR 2 . reverse $ (\x -> cieLAB d65 50 (100 * sin (2 * pi * x)) (100 * cos (2 * pi * x))) <$> fromZeroToOne
+cieLABColorList = shiftR 2 . reverse $ (\x -> cieLAB' 50 (100 * sin (2 * pi * x)) (100 * cos (2 * pi * x))) <$> fromZeroToOne
 
 redColorList :: [Color']
-redColorList = shiftR 2 . reverse $ (\x -> cieLAB d65 (50 + 50 * sin (2 * pi * x)) 100 (100 * cos (2 * pi * x))) <$> fromZeroToOne
+redColorList = shiftR 2 . reverse $ (\x -> cieLAB' (50 + 50 * sin (2 * pi * x)) 100 (100 * cos (2 * pi * x))) <$> fromZeroToOne
 
 okLABColorList :: [Color']
 okLABColorList = shiftR 2 . reverse $ (\x -> okLAB 0.5 (sin (2 * pi * x)) (cos (2 * pi * x))) <$> fromZeroToOne
@@ -65,7 +75,7 @@ myPicture :: Diagram B
 myPicture = vcat $ row <$> [cieLABColorList, redColorList, okLABColorList]
 
 okLAB :: Double -> Double -> Double -> Colour Double
-okLAB l a b = cieXYZ x y z
+okLAB l a b = let p = cieXYZ x y z in Prelude.trace (show p) p
   where
     V3 x y z = toXYZfromOK (V3 l a b)
 
@@ -85,3 +95,13 @@ m2 = inv33 $
     (V3 1.9779984951 (-2.4285922050)   0.4505937099)
     (V3 0.0259040371   0.7827717662  (-0.8086757660))
 
+okLAB' :: Fractional a => a -> a -> a -> Colour a
+okLAB' lum a b = rgb red' green' blue'
+  where
+    red' = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
+    green' = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
+    blue' = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
+    V3 l m s = (\x -> x * x * x) <$> V3 l_ m_ s_
+    l_ = lum + 0.3963377774 * a + 0.2158037573 * b;
+    m_ = lum - 0.1055613458 * a - 0.0638541728 * b;
+    s_ = lum - 0.0894841775 * a - 1.2914855480 * b;
