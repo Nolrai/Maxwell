@@ -77,6 +77,7 @@ test-suite Maxwell-test
   build-depends:       Maxwell
                      , hspec
                      , linear
+                     , QuickCheck
   ghc-options:         -threaded
                        -rtsopts
                        -with-rtsopts=-N
