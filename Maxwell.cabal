@@ -53,17 +53,20 @@ library
   import:              common-options
   hs-source-dirs:      src
   build-depends:       linear
+                     , vector
   exposed-modules:     Maxwell
                        Globe
+                       Turbo
 
 executable Maxwell
   import:              common-options
   hs-source-dirs:      app
   main-is:             Main.hs
+  other-modules:       ImageFunction
   build-depends:       Maxwell
                      , hip
                      , linear
-                     , array
+                     , vector
   ghc-options:         -threaded
                        -rtsopts
                        -with-rtsopts=-N

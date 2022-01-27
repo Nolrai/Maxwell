@@ -10,11 +10,12 @@ vectorfields in color
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE TypeFamilies              #-}
 
-module Maxwell (myPicture, toXYZfromOK, okLAB, okLAB', cieLAB') where
+module Maxwell (myPicture, toXYZfromOK, okLAB, okLAB', cieLAB', hsl, hslView, hsv, hsvView) where
 
 import Diagrams.Prelude hiding (light)
 import Diagrams.Backend.SVG.CmdLine ( B )
-import Data.Colour.RGBSpace.HSL ( hsl )
+import Data.Colour.RGBSpace.HSL ( hsl, hslView )
+import Data.Colour.RGBSpace.HSV ( hsv, hsvView )
 import Data.Colour.RGBSpace ( uncurryRGB, inGamut )
 import Data.Colour.SRGB.Linear ( rgb, sRGBGamut )
 import Data.Colour.CIE ( cieLAB, cieXYZ ) 
@@ -44,7 +45,7 @@ cieLAB' x y z =
   let b = inGamut sRGBGamut c in
   let msg1 = "(x,y,z) = " <> show (x,y,z) in
   let msg = " c = " <> show c <> (if b then " is " else " isn't ") <> "inGamut " in
-    Prelude.trace (msg1 <> msg) c
+    c
 
 
 cieLABColorList :: [Color']
@@ -75,7 +76,7 @@ myPicture :: Diagram B
 myPicture = vcat $ row <$> [cieLABColorList, redColorList, okLABColorList]
 
 okLAB :: Double -> Double -> Double -> Colour Double
-okLAB l a b = let p = cieXYZ x y z in Prelude.trace (show p) p
+okLAB l a b = let p = cieXYZ x y z in p
   where
     V3 x y z = toXYZfromOK (V3 l a b)
 

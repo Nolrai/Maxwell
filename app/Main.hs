@@ -1,24 +1,39 @@
 module Main (main, myImage) where
-import Maxwell (myPicture, okLAB, okLAB', cieLAB')
-import Globe (inverseProjection)
 import Diagrams.Backend.SVG.CmdLine (mainWith)
 import Graphics.Image as Image
-import Graphics.Image.Interface as Image
-import Data.Colour.SRGB.Linear as Colour
-import Linear.V3
-import Linear.V2
+-- import Graphics.Image.Interface as Image ()
+import ImageFunction (imageFunctions)
+import Prelude
+import GHC.Real (fromIntegral)
 
 main :: IO ()
-main = 
-    writeImage "sample.png" myImage
+main = do
+  doImage `mapM_` imageFunctions
+  doImageShifted `mapM_` imageFunctions
 
-myImage :: Image RPU Image.RGB Double
-myImage = makeImageR RPU (18, 18) (\ (x, y) -> imageFunction (fromIntegral x / 18) (fromIntegral y / 18))
+doImage, doImageShifted :: (String, Double -> Double -> Pixel RGB Double) -> IO ()
+doImageShifted (name, function) = writeImage (name <> "_shifited.png") (myImage (shiftAlernateRows function))
+doImage (name, function) = writeImage (name <> ".png") (myImage (unshiftedRows function))
 
-imageFunction :: Double -> Double -> Pixel Image.RGB Double
-imageFunction x y = let p = PixelRGB red green blue in Prelude.trace (show p) p
+size :: Num a => a
+size = 255
+
+myImage :: ((Int, Int) -> Pixel Image.RGB Double) -> Image RPU Image.RGB Double
+myImage = makeImageR RPU (size, size)
+
+unshiftedRows :: (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
+unshiftedRows imageFunction (x, y) = 
+    if 0 <= x' && x' <= 1
+      then imageFunction y' x'
+      else imageFunction 0 0
   where
-    -- Colour.RGB red green blue = toRGB $ okLAB 0.3 (sin (x * 2 * pi)) (cos (y * 2 * pi))
-    Colour.RGB red green blue = toRGB $ cieLAB' 80 (50 * cos (x * 2 * pi)) (50 * cos (y * 2 * pi))
-    -- l = l'/2 + 0.5
-    -- (V3 l' a b) = inverseProjection 1 (V2 (x * pi/2) (y * pi))
+  x' = (((fromIntegral x / size) - (1/2)) / sin (y' * pi)) + 1/2
+  y' = fromIntegral y / size
+
+shiftAlernateRows :: (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
+shiftAlernateRows imageFunction (x, y) = imageFunction (fromIntegral x / size) (fromIntegral y' / size)
+  where
+    y'
+      | even x = y
+      | y < (size `div` 2) = y + (size `div` 2)
+      | otherwise = y - (size `div` 2)
