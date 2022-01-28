@@ -6,12 +6,14 @@ Maintainer: Chris Upshaw <chrisaupshaw@gmail.com>
 vectorfields in color
 -}
 
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE TypeFamilies              #-}
 
 module Maxwell (myPicture, toXYZfromOK, okLAB, okLAB', cieLAB', hsl, hslView, hsv, hsvView) where
 
+import Relude
 import Diagrams.Prelude hiding (light)
 import Diagrams.Backend.SVG.CmdLine ( B )
 import Data.Colour.RGBSpace.HSL ( hsl, hslView )

@@ -5,8 +5,10 @@
 -- // SPDX-License-Identifier: Apache-2.0
 
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Turbo (turbo, colormap, (!)) where
+import Relude
 import Data.Colour.SRGB.Linear ( rgb )
 import Data.Colour ( Colour )
 import Linear ( V2(V2), Additive(lerp), V3(..) )

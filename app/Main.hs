@@ -1,38 +1,72 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 module Main (main, myImage) where
-import Diagrams.Backend.SVG.CmdLine (mainWith)
-import Graphics.Image as Image
--- import Graphics.Image.Interface as Image ()
+import Graphics.Image as Image hiding (rows)
 import ImageFunction (imageFunctions)
-import Prelude
-import GHC.Real (fromIntegral)
+import Relude
 
 main :: IO ()
 main = do
-  doImage `mapM_` imageFunctions
-  doImageShifted `mapM_` imageFunctions
+  args <- getArgs
+  let resolution = fromMaybe 30 $ readMaybe =<< viaNonEmpty head args 
+  sequence_ $ do
+    outer <- [doImageCurved, doImageShifted, doImageFlat, doImageSingleton]
+    outer resolution  <$> imageFunctions
 
-doImage, doImageShifted :: (String, Double -> Double -> Pixel RGB Double) -> IO ()
-doImageShifted (name, function) = writeImage (name <> "_shifited.png") (myImage (shiftAlernateRows function))
-doImage (name, function) = writeImage (name <> ".png") (myImage (unshiftedRows function))
+doImage :: 
+  String -> 
+  (Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double) -> 
+  Int ->
+  (String, Double -> Double -> Pixel Image.RGB Double) ->
+  IO ()
+doImage suffix rows resolution (name, function ) = writeImage (name <> suffix) (myImage resolution rows function)
 
-size :: Num a => a
-size = 255
+doImageCurved, doImageShifted, doImageFlat :: Int -> (String, Double -> Double -> Pixel RGB Double) -> IO ()
+doImageShifted    = doImage "_shifited.png"   shiftAlernateRows
+doImageCurved     = doImage "_curved.png"     curvedRows
+doImageFlat       = doImage "_flat.png"       flatRows
+doImageSingleton  = doImage "_singleton.png"  singletonRows
 
-myImage :: ((Int, Int) -> Pixel Image.RGB Double) -> Image RPU Image.RGB Double
-myImage = makeImageR RPU (size, size)
+myImage :: 
+  Int -> 
+  (Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double) ->
+  (Double -> Double -> Pixel Image.RGB Double) -> 
+  Image RPU Image.RGB Double
+myImage size rows f = makeImageR RPU (size, size) (rows size f)
 
-unshiftedRows :: (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
-unshiftedRows imageFunction (x, y) = 
-    if 0 <= x' && x' <= 1
-      then imageFunction y' x'
+singletonRows :: Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
+singletonRows size imageFunction (x, _) = imageFunction (1/2) x''
+  where
+  x', x'' :: Double
+  x' = fromIntegral x / fromIntegral size
+  x'' = 
+    if x' < 1/2
+      then x' + 1/2
+      else x' - 1/2
+
+flatRows :: Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
+flatRows size imageFunction (x, y) = imageFunction y' x'
+  where
+  x' = fromIntegral x / fromIntegral size
+  y' = fromIntegral y / fromIntegral size
+
+curvedRows :: Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
+curvedRows size imageFunction (x, y) = 
+    if 0 <= x'' && x'' <= 1
+      then imageFunction y' x''
       else imageFunction 0 0
   where
-  x' = (((fromIntegral x / size) - (1/2)) / sin (y' * pi)) + 1/2
-  y' = fromIntegral y / size
+  x' = (((fromIntegral x / fromIntegral size) - (1/2)) / sin (y' * pi)) + 1/2
+  y' = fromIntegral y / fromIntegral size
+  x'' = 
+  if x' < 1/2
+    then x' + 1/2
+    else x' - 1/2
 
-shiftAlernateRows :: (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
-shiftAlernateRows imageFunction (x, y) = imageFunction (fromIntegral x / size) (fromIntegral y' / size)
+
+shiftAlernateRows :: Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
+shiftAlernateRows size imageFunction (x, y) = imageFunction (fromIntegral x / fromIntegral size) (fromIntegral y' / fromIntegral size)
   where
+    y' :: Int
     y'
       | even x = y
       | y < (size `div` 2) = y + (size `div` 2)
