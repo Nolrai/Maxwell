@@ -59,9 +59,9 @@ library
   hs-source-dirs:      src
   build-depends:       linear
                      , vector
-  exposed-modules:     Maxwell
-                       Turbo
+  exposed-modules:     Turbo
                        ImageFunction
+                       InputManipulation
 
 executable Maxwell
   import:              common-options
@@ -70,6 +70,7 @@ executable Maxwell
   build-depends:       Maxwell
                      , linear
                      , vector
+                     , directory
   ghc-options:         -threaded
                        -rtsopts
                        -with-rtsopts=-N
@@ -79,7 +80,6 @@ test-suite Maxwell-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  other-modules:       MaxwellSpec
   build-depends:       Maxwell
                      , hspec
                      , linear

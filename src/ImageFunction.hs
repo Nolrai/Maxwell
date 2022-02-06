@@ -2,54 +2,51 @@
 
 module ImageFunction (imageFunctions) where
 import Relude
-import Maxwell ( hsv, hsl, hsvView, cieLAB', okLAB )
+import Data.Colour.RGBSpace.HSV
+import Data.Colour.CIE
+import Data.Colour.CIE.Illuminant
 import Graphics.Image as Image ( RGB, Pixel(PixelRGB) )
 import Data.Colour.SRGB.Linear as Colour ( RGB(RGB), toRGB )
-import Turbo ( turbo )
+import Linear ( V3(V3), (*!) )
+import InputManipulation (rotateFloat, yellowToRed)
 
 imageFunctions :: [([Char], Double -> Double -> Pixel Image.RGB Double)]
 imageFunctions =
-  [ ("okLab",    imageFunctionOkayLab)
-  , ("cieLABR",  imageFunctionCieLabR)
+  [ ("cieLABR",  imageFunctionCieLabR)
   , ("cieLAB",   imageFunctionCieLab)
-  , ("HSL",      imageFunctionHsl)
-  , ("HSV",      imageFunctionHsv)
-  , ("turbo1D",  imageFunctionTurbo)
-  , ("turboHSV", imageFunctionTurboHsv)
+  , ("HSV0",      imageFunctionHsv0)
+  , ("HSV1",     imageFunctionHsv1)
   ]
 
-imageFunctionOkayLab :: Double -> Double -> Pixel Image.RGB Double
-imageFunctionOkayLab  x y = let p = PixelRGB red green blue in p
+fromSphere :: Floating a => a -> a -> V3 a
+fromSphere phi theta = V3 (sin (phi * pi / 2)) (r * sin (theta * 2 * pi)) (r * cos (theta * 2 * pi))
   where
-    Colour.RGB red green blue = toRGB $ okLAB (0.3 + 0.7 * sin (x * pi / 2)) (0.4 * sin (x * pi) * sin (y * 2 * pi)) (0.4 * sin (x * pi) * cos (y * 2 * pi))
+    r = sin (phi * pi)
+
+toDiagonal :: Num a => a -> a -> a -> V3 (V3 a)
+toDiagonal a b c = V3 (V3 a 0 0) (V3 0 b 0) (V3 0 0 c)
+
+cieLAB' :: Double -> Double -> Double -> Colour Double
+cieLAB' = cieLAB d65
 
 imageFunctionCieLabR :: Double -> Double -> Pixel Image.RGB Double
-imageFunctionCieLabR x y = let p = PixelRGB red green blue in p
+imageFunctionCieLabR phi theta = let p = PixelRGB red green blue in p
   where
-    Colour.RGB red green blue = toRGB $ cieLAB' (0.6 + 0.35 * sin (x * pi) * sin (y * 2 * pi)) (-0.4 + 0.8 * sin (x * pi / 2)) (40 * sin (x * pi) * cos (y * 2 * pi))
+    Colour.RGB red green blue = toRGB $ cieLAB' l a b
+    V3 a l b = (xyz *! toDiagonal 35 80 40) + V3 60 (-40) 0
+    xyz = fromSphere phi theta
 
 imageFunctionCieLab :: Double -> Double -> Pixel Image.RGB Double
-imageFunctionCieLab x y = let p = PixelRGB red green blue in p
+imageFunctionCieLab phi theta= let p = PixelRGB red green blue in p
   where
-    Colour.RGB red green blue = toRGB $ cieLAB' (30 + 70 * sin (x * pi / 2)) (40 * sin (x * pi) * sin (y * 2 * pi)) (40 * sin (x * pi) * cos (y * 2 * pi))
+    Colour.RGB red green blue = toRGB $ cieLAB' l a b
+    V3 l a b = (xyz *! toDiagonal 70 40 40) + V3 30 0 0
+    xyz = fromSphere phi theta
 
-imageFunctionHsl :: Double -> Double -> Pixel Image.RGB Double
-imageFunctionHsl x y = let p = PixelRGB red green blue in p
+imageFunctionHsv0 :: Double -> Double -> Pixel Image.RGB Double
+imageFunctionHsv0 phi theta = let p = PixelRGB red green blue in p
   where
-    Colour.RGB red green blue = hsl (y * 360) (0.9 * sin (x * pi)) x
+    Colour.RGB red green blue = hsv (theta * 360) (0.9 * sin (phi * pi)) phi
 
-imageFunctionHsv :: Double -> Double -> Pixel Image.RGB Double
-imageFunctionHsv x y = let p = PixelRGB red green blue in p
-  where
-    Colour.RGB red green blue = hsv (y * 360) (0.9 * sin (x * pi)) x
-
-imageFunctionTurbo :: Double -> Double -> Pixel Image.RGB Double
-imageFunctionTurbo x _ = let p = PixelRGB red green blue in p
-  where
-    Colour.RGB red green blue = toRGB $ turbo x
-
-imageFunctionTurboHsv :: Double -> Double -> Pixel Image.RGB Double
-imageFunctionTurboHsv x y = let p = PixelRGB red green blue in p
-  where
-    Colour.RGB red green blue = hsv h (0.9 * sin (x * pi)) x
-    (h, _s, _v) = hsvView . toRGB $ turbo y
+imageFunctionHsv1 :: Double -> Double -> Pixel Image.RGB Double
+imageFunctionHsv1 phi theta = imageFunctionHsv0 phi (rotateFloat yellowToRed theta)

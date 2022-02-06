@@ -1,16 +1,20 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Main (main, myImage) where
-import Graphics.Image as Image hiding (rows)
+import Graphics.Image as Image
+    ( makeImageR, writeImage, RGB, Image, Pixel, RPU(..) )
 import ImageFunction (imageFunctions)
 import Relude
+import System.Directory
+import Text.ParserCombinators.ReadPrec (step)
 
 main :: IO ()
 main = do
+  createDirectoryIfMissing True prefix
   args <- getArgs
   let resolution = fromMaybe 30 $ readMaybe =<< viaNonEmpty head args 
   sequence_ $ do
-    outer <- [doImageCurved, doImageShifted, doImageFlat, doImageSingleton]
-    outer resolution  <$> imageFunctions
+    outer <- [doImageCurved, doImageFlat]
+    outer resolution <$> imageFunctions
 
 doImage :: 
   String -> 
@@ -28,20 +32,21 @@ doImageSingleton  = doImage "_singleton.png"  singletonRows
 
 myImage :: 
   Int -> 
-  (Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double) ->
+  (Int -> (Double -> Double -> Pixel RGB Double) -> (Int, Int) -> Pixel RGB Double) ->
   (Double -> Double -> Pixel Image.RGB Double) -> 
   Image RPU Image.RGB Double
 myImage size rows f = makeImageR RPU (size, size) (rows size f)
 
-singletonRows :: Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
-singletonRows size imageFunction (x, _) = imageFunction (1/2) x''
+shifted :: (Integral a) => a -> a -> a
+shifted size x = if x > size' then x - size' else x + size'
   where
-  x', x'' :: Double
-  x' = fromIntegral x / fromIntegral size
-  x'' = 
-    if x' < 1/2
-      then x' + 1/2
-      else x' - 1/2
+    size' = size `div` 2
+
+singletonRows :: Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
+singletonRows size imageFunction (x, _) = imageFunction (1/2) x'
+  where
+  x' :: Double
+  x' = fromIntegral (shifted size x) / fromIntegral size
 
 flatRows :: Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
 flatRows size imageFunction (x, y) = imageFunction y' x'
@@ -49,25 +54,20 @@ flatRows size imageFunction (x, y) = imageFunction y' x'
   x' = fromIntegral x / fromIntegral size
   y' = fromIntegral y / fromIntegral size
 
+curvedRowsShifted' :: Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
+curvedRowsShifted' size imageFunction (x, y) = curvedRows size imageFunction (shifted size x, y)
+
 curvedRows :: Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
 curvedRows size imageFunction (x, y) = 
-    if 0 <= x'' && x'' <= 1
-      then imageFunction y' x''
+    if 0 <= x' && x' <= 1
+      then imageFunction y' x'
       else imageFunction 0 0
   where
   x' = (((fromIntegral x / fromIntegral size) - (1/2)) / sin (y' * pi)) + 1/2
   y' = fromIntegral y / fromIntegral size
-  x'' = 
-  if x' < 1/2
-    then x' + 1/2
-    else x' - 1/2
-
 
 shiftAlernateRows :: Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double
-shiftAlernateRows size imageFunction (x, y) = imageFunction (fromIntegral x / fromIntegral size) (fromIntegral y' / fromIntegral size)
+shiftAlernateRows size imageFunction (x, y) = flatRows size imageFunction (x, y')
   where
     y' :: Int
-    y'
-      | even x = y
-      | y < (size `div` 2) = y + (size `div` 2)
-      | otherwise = y - (size `div` 2)
+    y' = if even x then y else shifted (size `div` 2) y
