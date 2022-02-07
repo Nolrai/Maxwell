@@ -1,11 +1,11 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Main (main, myImage) where
 import Graphics.Image as Image
-    ( makeImageR, writeImage, RGB, Image, Pixel, RPU(..) )
+    ( makeImageR, writeImage, RGB, Image, Pixel (PixelRGB), RPU(..), toWord8Px)
+import Graphics.Image.Interface (Elevator)
 import ImageFunction (imageFunctions)
 import Relude
 import System.Directory
-import Text.ParserCombinators.ReadPrec (step)
 
 main :: IO ()
 main = do
@@ -13,22 +13,52 @@ main = do
   args <- getArgs
   let resolution = fromMaybe 30 $ readMaybe =<< viaNonEmpty head args 
   sequence_ $ do
-    outer <- [doImageCurved, doImageFlat]
+    outer <- [doImageCurved, doImageFlat, doLogFlat, doFindMaxCurved]
     outer resolution <$> imageFunctions
 
-doImage :: 
+doImage, doLog :: 
   String -> 
   (Int -> (Double -> Double -> Pixel Image.RGB Double) -> (Int, Int) -> Pixel Image.RGB Double) -> 
   Int ->
   (String, Double -> Double -> Pixel Image.RGB Double) ->
   IO ()
-doImage suffix rows resolution (name, function ) = writeImage (name <> suffix) (myImage resolution rows function)
+doImage suffix rows resolution (name, function ) = writeImage (prefix <> name <> suffix) (myImage resolution rows function)
+doLog suffix rows resolution (name, function) = 
+  writeFileText (prefix <> name <> suffix) . unlines . (show <$>) $ pixelList resolution rows function
 
-doImageCurved, doImageShifted, doImageFlat :: Int -> (String, Double -> Double -> Pixel RGB Double) -> IO ()
-doImageShifted    = doImage "_shifited.png"   shiftAlernateRows
-doImageCurved     = doImage "_curved.png"     curvedRows
-doImageFlat       = doImage "_flat.png"       flatRows
-doImageSingleton  = doImage "_singleton.png"  singletonRows
+findMax :: MonadIO m =>
+  String
+  -> (Int -> f -> (Int, Int) -> Pixel RGB Double)
+  -> Int
+  -> (String, f)
+  -> m ()
+findMax suffix rows resolution (name, function) =
+  [("red", toRed), ("green", toGreen), ("blue", toBlue)] `forM_`
+    \ (colorName, f) -> do
+        writeFileText (prefix <> name <> "_" <> colorName <> "_" <> suffix)
+          . unlines 
+          . (show <$>)
+          . sortBy (compare `on` f)
+          $ pixelList resolution rows function
+  where
+    toRed   (_, PixelRGB r  _g _b) = r
+    toGreen (_, PixelRGB _r  g _b) = g
+    toBlue  (_, PixelRGB _r _g  b) = b
+  
+pixelList :: Elevator e => Int -> (Int -> f -> (Int, Int) -> Pixel RGB e) -> f -> [((Int, Int), Pixel RGB Word8)]
+pixelList resolution rows function =
+      (\ x y -> ((x, y), toWord8Px $ rows resolution function (x,y))) <$> [0 .. resolution - 1] <*> [0 .. resolution - 1]
+
+prefix :: String
+prefix = "./pictures/"
+
+doImageSingleton, doImageCurved, doImageAlternating, doImageFlat, doLogFlat, doFindMaxCurved :: Int -> (String, Double -> Double -> Pixel RGB Double) -> IO ()
+doImageAlternating  = doImage "_alternating.png"  shiftAlernateRows
+doImageCurved       = doImage "_curved.png"       curvedRows
+doImageFlat         = doImage "_flat.png"         flatRows
+doImageSingleton    = doImage "_singleton.png"    singletonRows
+doLogFlat           = doLog   "_flat.log"         flatRows
+doFindMaxCurved     = findMax "_curved_maximums.log" curvedRows
 
 myImage :: 
   Int -> 

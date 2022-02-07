@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude, ScopedTypeVariables #-}
 
-module InputManipulation (onF, onRotate, rotateFloat, from01ToNeg1Pos1, fromNeg1Pos1To01, smoosh, affine, yellowToRed) where
+module InputManipulation (onF, onRotate, rotateFloat, onNeg1Pos1, from01ToNeg1Pos1, fromNeg1Pos1To01, smoosh, affine, yellowToRed) where
 
 import Relude
 
@@ -12,6 +12,9 @@ smoosh a b x = signum x * abs x ** logBase a b
 
 onRotate :: RealFrac b2 => b2 -> (b2 -> b2) -> b2 -> b2
 onRotate amount = onF (rotateFloat amount) (rotateFloat (-amount))
+
+onNeg1Pos1 :: (Double -> Double) -> Double -> Double
+onNeg1Pos1 = onF from01ToNeg1Pos1 fromNeg1Pos1To01
 
 from01ToNeg1Pos1 :: Double -> Double
 from01ToNeg1Pos1 = affine 2.0 (-1)
@@ -34,4 +37,4 @@ rotateFloat :: RealFrac a => a -> a -> a
 rotateFloat amount input = frem (input + amount)
 
 yellowToRed :: Double
-yellowToRed = -5/30 -- A.K.A. 60 degrees (of 360)
+yellowToRed = 5/30 -- A.K.A. 60 degrees (of 360)
